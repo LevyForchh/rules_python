@@ -102,6 +102,13 @@ parser.add_argument('--output', action='store',
 parser.add_argument('--directory', action='store',
                     help=('The directory into which to put .whl files.'))
 
+parser.add_argument('--extra_pip_args', action='store',
+                    help=('Extra arguments to pass down to pip.'))
+
+def sort_wheels(whls):
+  """Sorts a list of wheels deterministically."""
+  return sorted(whls, key=lambda w: w.distribution() + '_' + w.version())
+
 def determine_possible_extras(whls):
   """Determines the list of possible "extras" for each .whl
 
@@ -150,7 +157,7 @@ def determine_possible_extras(whls):
   return {
     whl: [
       extra
-      for extra in whl.extras()
+      for extra in sorted(whl.extras())
       if is_possible(whl.distribution(), extra)
     ]
     for whl in whls
@@ -160,7 +167,10 @@ def main():
   args = parser.parse_args()
 
   # https://github.com/pypa/pip/blob/9.0.1/pip/__init__.py#L209
-  if pip_main(["wheel", "-w", args.directory, "-r", args.input]):
+  pip_args = ["wheel", "-w", args.directory, "-r", args.input]
+  if args.extra_pip_args:
+      pip_args += args.extra_pip_args.strip("\"").split()
+  if pip_main(pip_args):
     sys.exit(1)
 
   # Enumerate the .whl files we downloaded.
@@ -171,7 +181,7 @@ def main():
         if fname.endswith('.whl'):
           yield os.path.join(root, fname)
 
-  whls = [Wheel(path) for path in list_whls()]
+  whls = sort_wheels(Wheel(path) for path in list_whls())
   possible_extras = determine_possible_extras(whls)
 
   def repository_name(wheel):
