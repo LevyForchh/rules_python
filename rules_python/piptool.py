@@ -167,7 +167,10 @@ def main():
   args = parser.parse_args()
 
   # https://github.com/pypa/pip/blob/9.0.1/pip/__init__.py#L209
-  if pip_main(["wheel", "-w", args.directory, "-r", args.input]):
+  pip_args = ["wheel", "-w", args.directory, "-r", args.input]
+  if args.extra_pip_args:
+    pip_args += args.extra_pip_args.strip("\"").split()
+  if pip_main(pip_args):
     sys.exit(1)
 
   # Enumerate the .whl files we downloaded.
